@@ -45,4 +45,4 @@ __installments_payments.csv__
 - There is a) one row for every payment that was made plus b) one row each for missed payment.
 - One row is equivalent to one payment of one installment OR one installment corresponding to one payment of one previous Home Credit credit related to loans in our sample.
 
-![Home Credit Tables][https://storage.googleapis.com/kaggle-media/competitions/home-credit/home_credit.png]
+![Home Credit Tables](https://storage.googleapis.com/kaggle-media/competitions/home-credit/home_credit.png)
