@@ -2,7 +2,7 @@
 
 # DATA PREPROCESSING AND FEATURE ENGINEERING
 
-'''
+"""
 In this project we try to predict home credit default risk for clients.
 In this script we focus on data preprocessing and feature engineering.
 
@@ -10,14 +10,14 @@ Dataset: https://www.kaggle.com/c/home-credit-default-risk/overview
 
 Steps to follow for data preprocessing and feature engineering:
     - New Features Creation and Analysis of New Features
-    - Missing Values Analysis
-    - Outlier Analysis
+    - Missing Values Analysis, but not treatment
+    - Outlier Analysis, but not treatment
     - Label and One Hot Encoding
     - Standardization / Feature Scaling
     - Control the Dataset
     - Save Dataset for Modeling
 
-'''
+"""
 
 
 # Import dependencies
@@ -81,7 +81,7 @@ df.groupby('TARGET').agg({'NEW_DAYS_EMPLOYED_PERC': [min, max, np.mean, np.media
 # Remove super outliers from the dataframe for AMT_INCOME_TOTAL
 df = df[df['AMT_INCOME_TOTAL'] < 20000000]
 # Feauture to show the ratio 'AMT_INCOME_TOTAL' / 'AMT_CREDIT'
-df['NEW_INCOME_CREDIT_PERC'] = df['AMT_INCOME_TOTAL'] / df['AMT_CREDIT']
+df['NEW_INCOME_CREDIT_PERC'] = df['AMT_INCOME_TOTAL'] / df['AMT_CREDIT'] # ? Comparison by year *12, meaningful or not for tree based models. Canceled.
 # Show results for new feature
 df['NEW_INCOME_CREDIT_PERC'].head()
 df['NEW_INCOME_CREDIT_PERC'].describe()
@@ -109,7 +109,7 @@ df['NEW_PAYMENT_RATE'] = df['AMT_ANNUITY'] / df['AMT_CREDIT']
 # Show results for new feature
 df['NEW_PAYMENT_RATE'].head()
 df['NEW_PAYMENT_RATE'].describe()
-df.groupby('TARGET').agg({'NEW_PAYMENT_RATE': [min, max, np.mean, np.median]})
+df.groupby('TARGET').agg({'NEW_PAYMENT_RATE': ['count', min, max, np.mean, np.median]})
 
 
 # Feature to show the ratio 'NEW_INCOME_PER_PERSON' / 'AMT_ANNUITY'
@@ -128,7 +128,7 @@ df['NEW_INCOME_PER_PERSON_PERC_PAYMENT_RATE_INCOME_PER_PERSON'].describe()
 df.groupby('TARGET').agg({'NEW_INCOME_PER_PERSON_PERC_PAYMENT_RATE_INCOME_PER_PERSON': ['count', min, max, np.mean, np.median]})
 
 
-# Feature to show if 'AMT_CREDIT' > 'AMT_GOODS_PRICE'
+# Feature that shows, if 'AMT_CREDIT' > 'AMT_GOODS_PRICE' or not.
 df.loc[(df['AMT_CREDIT'] <= df['AMT_GOODS_PRICE']), 'NEW_FLAG_CREDIT_MORE_THAN_GOODSPRICE'] = 0
 df.loc[(df['AMT_CREDIT'] > df['AMT_GOODS_PRICE']), 'NEW_FLAG_CREDIT_MORE_THAN_GOODSPRICE'] = 1
 print(len(df.loc[df['NEW_FLAG_CREDIT_MORE_THAN_GOODSPRICE']==1, :])) # 230517
@@ -141,6 +141,7 @@ df.groupby('NEW_FLAG_CREDIT_MORE_THAN_GOODSPRICE').agg({'TARGET': ['count', 'mea
 
 # Categorical age - based on target=1 plot
 df['NEW_AGE_RANGE'] = df['DAYS_BIRTH'].apply(lambda x: feateng.get_age_label(x))
+# df['NEW_AGE_RANGE'] = pd.cut(x=df['DAYS_BIRTH'] / -365, bins=[0, 27, 40, 50, 65, 99], labels=[1, 2, 3, 4, 5])
 # Show results for new feature
 df['NEW_AGE_RANGE'].head()
 df['NEW_AGE_RANGE'].describe()
@@ -152,6 +153,7 @@ plt.show()
 
 # Categorical working year - based on target=1 plot
 df['NEW_WORKING_YEAR_RANGE'] = df['DAYS_EMPLOYED'].apply(lambda x: feateng.get_working_year_label(x))
+# df['NEW_WORKING_YEAR_RANGE'] = pd.cut(x=df['DAYS_EMPLOYED'] / -365, bins=[0, 3, 5, 15, 50], labels=[1, 2, 3, 4])
 # Show results for new feature
 df['NEW_WORKING_YEAR_RANGE'].head()
 df['NEW_WORKING_YEAR_RANGE'].describe()
@@ -190,11 +192,11 @@ df["NEW_YEAR_LAST_PHONE_CHANGE"] = (df["DAYS_LAST_PHONE_CHANGE"] / -365)
 
 df["NEW_YEAR_LAST_PHONE_CHANGE"].max()
 # Finding balance between classes
-df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 0) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 1),"NEW_YEAR_LAST_PHONE_CHANGE"] = 1
-df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 1) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 2),"NEW_YEAR_LAST_PHONE_CHANGE"] = 2
-df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 2) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 3),"NEW_YEAR_LAST_PHONE_CHANGE"] = 3
-df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 3) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 4),"NEW_YEAR_LAST_PHONE_CHANGE"] = 4
-df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 4) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 5),"NEW_YEAR_LAST_PHONE_CHANGE"] = 5
+df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 0) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 1), "NEW_YEAR_LAST_PHONE_CHANGE"] = 1
+df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 1) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 2), "NEW_YEAR_LAST_PHONE_CHANGE"] = 2
+df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 2) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 3), "NEW_YEAR_LAST_PHONE_CHANGE"] = 3
+df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 3) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 4), "NEW_YEAR_LAST_PHONE_CHANGE"] = 4
+df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 4) & (df["NEW_YEAR_LAST_PHONE_CHANGE"] <= 5), "NEW_YEAR_LAST_PHONE_CHANGE"] = 5
 df.loc[(df["NEW_YEAR_LAST_PHONE_CHANGE"] > 5), "NEW_YEAR_LAST_PHONE_CHANGE"] = 6
 
 df['NEW_YEAR_LAST_PHONE_CHANGE'].describe([0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99]).T
@@ -206,7 +208,7 @@ plt.show()
 
 
 # Feature to show sum of FLAG_DOCUMENTS
-df["NEW_MISS_DOCUMENTS_20"] =df['FLAG_DOCUMENT_2'] + df['FLAG_DOCUMENT_3'] + df['FLAG_DOCUMENT_4'] + \
+df["NEW_MISS_DOCUMENTS_20"] = df['FLAG_DOCUMENT_2'] + df['FLAG_DOCUMENT_3'] + df['FLAG_DOCUMENT_4'] + \
                                 df['FLAG_DOCUMENT_5'] + df['FLAG_DOCUMENT_6'] + df['FLAG_DOCUMENT_7'] + \
                                 df['FLAG_DOCUMENT_8'] + df['FLAG_DOCUMENT_9'] + df['FLAG_DOCUMENT_10'] + \
                                 df['FLAG_DOCUMENT_11'] + df['FLAG_DOCUMENT_12'] + df['FLAG_DOCUMENT_13'] + \
@@ -223,8 +225,9 @@ plt.show()
 
 
 # Feature to show finding balance between classes for 'NEW_MISS_DOCUMENTS'
-df.loc[(df["NEW_MISS_DOCUMENTS_20"] == 0),"NEW_MISS_DOCUMENTS"] = 0
-df.loc[(df["NEW_MISS_DOCUMENTS_20"] > 0),"NEW_MISS_DOCUMENTS"] = 1
+df.loc[(df["NEW_MISS_DOCUMENTS_20"] == 0), "NEW_MISS_DOCUMENTS"] = 0
+df.loc[(df["NEW_MISS_DOCUMENTS_20"] > 0), "NEW_MISS_DOCUMENTS"] = 1
+# df['NEW_MISS_DOCUMENTS'] = df['NEW_MISS_DOCUMENTS_20'].apply(lambda x: 1 if x > 0 else 0)
 
 df['NEW_MISS_DOCUMENTS'].describe([0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99]).T
 # Group by target variable
@@ -240,7 +243,7 @@ df["NEW_AMT_REQ_CREDIT_BUREAU_YEAR"] = df["AMT_REQ_CREDIT_BUREAU_HOUR"] + df["AM
                                        df["AMT_REQ_CREDIT_BUREAU_QRT"] + df["AMT_REQ_CREDIT_BUREAU_YEAR"]
 
 df.groupby('NEW_AMT_REQ_CREDIT_BUREAU_YEAR').agg({'TARGET': ['count', 'mean']})
-df.loc[(df["NEW_AMT_REQ_CREDIT_BUREAU_YEAR"] >= 7),"NEW_AMT_REQ_CREDIT_BUREAU_YEAR"] = 7
+df.loc[(df["NEW_AMT_REQ_CREDIT_BUREAU_YEAR"] >= 7), "NEW_AMT_REQ_CREDIT_BUREAU_YEAR"] = 7
 df['NEW_AMT_REQ_CREDIT_BUREAU_YEAR'].describe([0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99]).T
 # Group by target variable
 df.groupby('NEW_AMT_REQ_CREDIT_BUREAU_YEAR').agg({'TARGET': ['count', 'mean']})
@@ -249,18 +252,7 @@ sns.countplot(x='NEW_AMT_REQ_CREDIT_BUREAU_YEAR', hue="TARGET", data=df)
 plt.show()
 
 
-# Feature to show  EXT_SOURCE WEIGHTED
-df['NEW_EXT_SOURCES_WEIGHTED'] = df.EXT_SOURCE_1 * 2 + df.EXT_SOURCE_2 * 1 + df.EXT_SOURCE_3 * 3
-# Group by target variable
-df.groupby('NEW_EXT_SOURCES_WEIGHTED').agg({'TARGET': ['count', 'mean']})
-# Show results for new feature
-sns.countplot(x='NEW_EXT_SOURCES_WEIGHTED', hue="TARGET", data=df)
-plt.show()
-
-# Can we do better to find count of null values .
-df.isnull().sum().sort_values(ascending=False)
-
-# Define the list for dropping variables.
+# Define the list for variables to drop.
 drop_list = ['FLAG_MOBIL', 'FLAG_EMP_PHONE', 'FLAG_WORK_PHONE', 'FLAG_CONT_MOBILE', 'FLAG_PHONE', 'FLAG_EMAIL',
              'CNT_FAM_MEMBERS', 'REGION_RATING_CLIENT_W_CITY', 'OBS_60_CNT_SOCIAL_CIRCLE', 'DEF_60_CNT_SOCIAL_CIRCLE',
              'DAYS_LAST_PHONE_CHANGE', 'FLAG_DOCUMENT_2', 'FLAG_DOCUMENT_3', 'FLAG_DOCUMENT_4', 'FLAG_DOCUMENT_5',
@@ -268,7 +260,7 @@ drop_list = ['FLAG_MOBIL', 'FLAG_EMP_PHONE', 'FLAG_WORK_PHONE', 'FLAG_CONT_MOBIL
              'FLAG_DOCUMENT_12', 'FLAG_DOCUMENT_13', 'FLAG_DOCUMENT_14', 'FLAG_DOCUMENT_15', 'FLAG_DOCUMENT_16', 'FLAG_DOCUMENT_17',
              'FLAG_DOCUMENT_18', 'FLAG_DOCUMENT_19', 'FLAG_DOCUMENT_20', 'FLAG_DOCUMENT_21', 'AMT_REQ_CREDIT_BUREAU_HOUR',
              'AMT_REQ_CREDIT_BUREAU_DAY', 'AMT_REQ_CREDIT_BUREAU_WEEK', 'AMT_REQ_CREDIT_BUREAU_MON', 'AMT_REQ_CREDIT_BUREAU_QRT',
-             'AMT_REQ_CREDIT_BUREAU_YEAR', 'COMMONAREA_MODE', 'NONLIVINGAREA_MODE', 'NONLIVINGAREA_AVG','FLOORSMIN_MEDI', 'LANDAREA_MODE',
+             'AMT_REQ_CREDIT_BUREAU_YEAR', 'COMMONAREA_MODE', 'NONLIVINGAREA_MODE', 'NONLIVINGAREA_AVG', 'FLOORSMIN_MEDI', 'LANDAREA_MODE',
              'NONLIVINGAREA_MEDI', 'LIVINGAPARTMENTS_MODE', 'FLOORSMIN_AVG', 'LANDAREA_AVG', 'FLOORSMIN_MODE', 'LANDAREA_MEDI',
              'COMMONAREA_MEDI', 'YEARS_BUILD_AVG', 'COMMONAREA_AVG', 'BASEMENTAREA_AVG', 'BASEMENTAREA_MODE', 'NONLIVINGAPARTMENTS_MEDI',
              'BASEMENTAREA_MEDI', 'LIVINGAPARTMENTS_AVG', 'ELEVATORS_AVG', 'YEARS_BUILD_MEDI', 'ENTRANCES_MODE', 'NONLIVINGAPARTMENTS_MODE',
@@ -276,8 +268,8 @@ drop_list = ['FLAG_MOBIL', 'FLAG_EMP_PHONE', 'FLAG_WORK_PHONE', 'FLAG_CONT_MOBIL
              'YEARS_BEGINEXPLUATATION_MODE', 'NONLIVINGAPARTMENTS_AVG', 'FONDKAPREMONT_MODE', 'EMERGENCYSTATE_MODE', 'COMMONAREA_MEDI',
              'ELEVATORS_MODE', 'WALLSMATERIAL_MODE', "APARTMENTS_MODE", 'APARTMENTS_MEDI', 'APARTMENTS_AVG', 'ENTRANCES_AVG', 'ENTRANCES_MEDI',
              'ENTRANCES_MODE', 'LIVINGAREA_MODE', 'LIVINGAREA_AVG', 'LIVINGAREA_MEDI', 'HOUSETYPE_MODE', 'FLOORSMAX_AVG', 'FLOORSMAX_MEDI',
-             'FLOORSMAX_MODE', 'YEARS_BEGINEXPLUATATION_MEDI', 'TOTALAREA_MODE', 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3',
-             'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'REG_REGION_NOT_LIVE_REGION', 'REG_REGION_NOT_WORK_REGION', 'LIVE_REGION_NOT_WORK_REGION']
+             'FLOORSMAX_MODE', 'YEARS_BEGINEXPLUATATION_MEDI', 'TOTALAREA_MODE', 'REG_REGION_NOT_LIVE_REGION', 'REG_REGION_NOT_WORK_REGION',
+             'LIVE_REGION_NOT_WORK_REGION']
 
 
 # MISSING VALUES ANALYSIS
@@ -355,7 +347,7 @@ df.dtypes
 
 # SAVE DATASET FOR MODELING
 
-import snappy
+# import snappy
 import fastparquet
 
 # Saving the Dataset as a parquet file.
