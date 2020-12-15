@@ -2,12 +2,14 @@
 
 In this project we try to predict home credit default risk for clients. We try to predict, if the client will have payment difficulties or not.
 
-Project team members:
+__Project team members:__
+
 - Ali Baltaci
 - Beren Sak
 - Yakup Kaplan
 
-Mentors:
+__Mentors:__
+
 - M.Vahit Keskin
 - Muhammet Cakmak
 
