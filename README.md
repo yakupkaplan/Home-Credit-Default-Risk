@@ -15,6 +15,7 @@ __Mentors:__
 
 
 __Target definition:__ 
+
 1 - client with payment difficulties: he/she had late payment more than X days on at least one of the first Y installments of the loan in our sample,              
 0 - all other cases
 
