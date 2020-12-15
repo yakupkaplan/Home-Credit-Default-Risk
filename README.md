@@ -2,6 +2,10 @@
 
 In this project we try to predict home credit default risk for clients. We try to predict, if the client will have payment difficulties or not.
 
+Dataset: https://www.kaggle.com/c/home-credit-default-risk/overview
+
+Reference notebook: https://www.kaggle.com/jsaguiar/lightgbm-with-simple-features
+
 __Project team members:__
 
 - Ali Baltaci
