@@ -9,12 +9,11 @@ Reference notebook: https://www.kaggle.com/jsaguiar/lightgbm-with-simple-feature
 __Project team members:__
 
 - Ali Baltaci: https://github.com/alibaltaci
-- Beren Sak:
+- Beren Sak: https://github.com/berensak
 - Yakup Kaplan: https://github.com/yakupkaplan
 
-__Mentors:__
+__Mentor:__
 
-- M.Vahit Keskin: https://github.com/mvahit
 - Muhammet Cakmak: https://github.com/muhammet-cakmak
 
 
