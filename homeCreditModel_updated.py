@@ -49,6 +49,18 @@ def one_hot_encoder(df, nan_as_category=True):
     return df, new_columns
 
 
+#
+def rare_encoder(dataframe, rare_perc):
+    temp_df = dataframe.copy()
+    rare_columns = [col for col in temp_df.columns if temp_df[col].dtypes == 'O'
+                    and (temp_df[col].value_counts() / len(temp_df) < rare_perc).any(axis=None)]
+    for var in rare_columns:
+        tmp = temp_df[var].value_counts() / len(temp_df)
+        rare_labels = tmp[tmp < rare_perc].index
+        temp_df[var] = np.where(temp_df[var].isin(rare_labels), 'Rare', temp_df[var])
+    return temp_df
+
+
 # Preprocess application_train.csv and application_test.csv
 def application_train_test(num_rows=None, nan_as_category=False):
     # Read data and merge
@@ -141,20 +153,80 @@ def feature_eng_application_train(df):
 def bureau_and_balance(num_rows=None, nan_as_category=True):
     bureau = pd.read_csv('datasets/bureau.csv', nrows=num_rows)
     bb = pd.read_csv('datasets/bureau_balance.csv', nrows=num_rows)
-    bb, bb_cat = one_hot_encoder(bb, nan_as_category)
-    bureau, bureau_cat = one_hot_encoder(bureau, nan_as_category)
+
+    bureau.fillna(0, inplace=True)
+
+    grp = bureau[['SK_ID_CURR', 'DAYS_CREDIT']].groupby(by=['SK_ID_CURR'])['DAYS_CREDIT'].count().reset_index().rename(
+        index=str, columns={'DAYS_CREDIT': 'NEW_BUREAU_LOAN_COUNT'})
+    bureau = bureau.merge(grp, on=['SK_ID_CURR'], how='left')
+
+    grp = bureau[['SK_ID_CURR', 'CREDIT_TYPE']].groupby(by=['SK_ID_CURR'])[
+        'CREDIT_TYPE'].nunique().reset_index().rename(
+        index=str, columns={'CREDIT_TYPE': 'NEW_BUREAU_LOAN_TYPES'})
+    bureau = bureau.merge(grp, on=['SK_ID_CURR'], how='left')
+
+    bureau['CREDIT_ACTIVE_BINARY'] = bureau['CREDIT_ACTIVE']
+
+    def f_1(x):
+        if x == 'Active':
+            y = 1
+        else:
+            y = 0
+        return y
+
+    bureau['CREDIT_ACTIVE_BINARY'] = bureau.apply(lambda x: f_1(x.CREDIT_ACTIVE), axis=1)
+    grp = bureau.groupby(by=['SK_ID_CURR'])['CREDIT_ACTIVE_BINARY'].mean().reset_index().rename(index=str, columns={
+        'CREDIT_ACTIVE_BINARY': 'NEW_ACTIVE_LOANS_PERCENTAGE'})
+    bureau = bureau.merge(grp, on=['SK_ID_CURR'], how='left')
+    del bureau['CREDIT_ACTIVE_BINARY']
+    gc.collect()
+
+    bureau['CREDIT_ENDDATE_BINARY'] = bureau['DAYS_CREDIT_ENDDATE']
+
+    def f_2(x):
+        if x <= 0:
+            y = 0
+        else:
+            y = 1
+        return y
+
+    bureau['CREDIT_ENDDATE_BINARY'] = bureau.apply(lambda x: f_2(x.DAYS_CREDIT_ENDDATE), axis=1)
+    grp = bureau.groupby(by=['SK_ID_CURR'])['CREDIT_ENDDATE_BINARY'].mean().reset_index().rename(index=str, columns={
+        'CREDIT_ENDDATE_BINARY': 'NEW_CREDIT_ENDDATE_PERCENTAGE'})
+    bureau = bureau.merge(grp, on=['SK_ID_CURR'], how='left')
+    del bureau['CREDIT_ENDDATE_BINARY']
+    gc.collect()
+
+    grp1 = bureau[['SK_ID_CURR', 'AMT_CREDIT_SUM_DEBT']].groupby(by=['SK_ID_CURR'])[
+        'AMT_CREDIT_SUM_DEBT'].sum().reset_index().rename(index=str,
+                                                          columns={'AMT_CREDIT_SUM_DEBT': 'TOTAL_CUSTOMER_DEBT'})
+    grp2 = bureau[['SK_ID_CURR', 'AMT_CREDIT_SUM']].groupby(by=['SK_ID_CURR'])[
+        'AMT_CREDIT_SUM'].sum().reset_index().rename(
+        index=str, columns={'AMT_CREDIT_SUM': 'TOTAL_CUSTOMER_CREDIT'})
+    bureau = bureau.merge(grp1, on=['SK_ID_CURR'], how='left')
+    bureau = bureau.merge(grp2, on=['SK_ID_CURR'], how='left')
+    del grp1, grp2
+    gc.collect()
+    bureau['NEW_DEBT_CREDIT_RATIO'] = bureau['TOTAL_CUSTOMER_DEBT'] / bureau['TOTAL_CUSTOMER_CREDIT']
+    del bureau['TOTAL_CUSTOMER_DEBT'], bureau['TOTAL_CUSTOMER_CREDIT']
+    gc.collect()
+
+    # rare encoding
+    bureau = rare_encoder(bureau, 0.01)
+    # one hot encoding
+    bb, bb_cat = one_hot_encoder(bb, True)
+    bureau, bureau_cat = one_hot_encoder(bureau, True)
 
     # Bureau balance: Perform aggregations and merge with bureau.csv
     bb_aggregations = {'MONTHS_BALANCE': ['min', 'max', 'size']}
     for col in bb_cat:
         bb_aggregations[col] = ['mean']
     bb_agg = bb.groupby('SK_ID_BUREAU').agg(bb_aggregations)
-    bb_agg.columns = pd.Index([e[0] + "_" + e[1].upper() for e in bb_agg.columns.tolist()])
+    bb_agg.columns = pd.Index(['BB_' + e[0] + "_" + e[1].upper() for e in bb_agg.columns.tolist()])
     bureau = bureau.join(bb_agg, how='left', on='SK_ID_BUREAU')
     bureau.drop(['SK_ID_BUREAU'], axis=1, inplace=True)
     del bb, bb_agg
     gc.collect()
-
     # Bureau and bureau_balance numeric features
     num_aggregations = {
         'DAYS_CREDIT': ['min', 'max', 'mean', 'var'],
@@ -168,15 +240,21 @@ def bureau_and_balance(num_rows=None, nan_as_category=True):
         'AMT_CREDIT_SUM_LIMIT': ['mean', 'sum'],
         'AMT_ANNUITY': ['max', 'mean'],
         'CNT_CREDIT_PROLONG': ['sum'],
-        'MONTHS_BALANCE_MIN': ['min'],
-        'MONTHS_BALANCE_MAX': ['max'],
-        'MONTHS_BALANCE_SIZE': ['mean', 'sum']
+        'BB_MONTHS_BALANCE_MIN': ['min'],
+        'BB_MONTHS_BALANCE_MAX': ['max'],
+        'BB_MONTHS_BALANCE_SIZE': ['mean', 'sum'],
+        'NEW_BUREAU_LOAN_COUNT': ['mean'],
+        'NEW_BUREAU_LOAN_TYPES': ['mean'],
+        'NEW_ACTIVE_LOANS_PERCENTAGE': ['max', 'mean'],
+        'NEW_CREDIT_ENDDATE_PERCENTAGE': ['max', 'mean'],
+        'NEW_DEBT_CREDIT_RATIO': ['max', 'mean']
     }
     # Bureau and bureau_balance categorical features
     cat_aggregations = {}
-    for cat in bureau_cat: cat_aggregations[cat] = ['mean']
-    for cat in bb_cat: cat_aggregations[cat + "_MEAN"] = ['mean']
-
+    for cat in bureau_cat:
+        cat_aggregations[cat] = ['mean']
+    for cat in bb_cat:
+        cat_aggregations["BB_" + cat + "_MEAN"] = ['mean']
     bureau_agg = bureau.groupby('SK_ID_CURR').agg({**num_aggregations, **cat_aggregations})
     bureau_agg.columns = pd.Index(['BURO_' + e[0] + "_" + e[1].upper() for e in bureau_agg.columns.tolist()])
     # Bureau: Active credits - using only numerical aggregations
@@ -198,47 +276,108 @@ def bureau_and_balance(num_rows=None, nan_as_category=True):
 
 # Preprocess previous_applications.csv
 def previous_applications(num_rows=None, nan_as_category=True):
-    prev = pd.read_csv('datasets/previous_application.csv', nrows=num_rows)
-    prev, cat_cols = one_hot_encoder(prev, nan_as_category=True)
-    # Days 365.243 values -> nan
-    prev['DAYS_FIRST_DRAWING'].replace(365243, np.nan, inplace=True)
-    prev['DAYS_FIRST_DUE'].replace(365243, np.nan, inplace=True)
-    prev['DAYS_LAST_DUE_1ST_VERSION'].replace(365243, np.nan, inplace=True)
-    prev['DAYS_LAST_DUE'].replace(365243, np.nan, inplace=True)
-    prev['DAYS_TERMINATION'].replace(365243, np.nan, inplace=True)
-    # Add feature: value ask / value received percentage
-    prev['APP_CREDIT_PERC'] = prev['AMT_APPLICATION'] / prev['AMT_CREDIT']
-    # Previous applications numeric features
+    df_prev = pd.read_csv('datasets/previous_application.csv')
+    a = ['Family', 'Spouse, partner', 'Children', 'Other_B', 'Other_A', 'Group of people']
+    df_prev["NAME_TYPE_SUITE"] = df_prev["NAME_TYPE_SUITE"].replace(a, 'Accompanied')
+
+    b = ['Auto Accessories', 'Jewelry', 'Homewares', 'Medical Supplies', 'Vehicles', 'Sport and Leisure',
+         'Gardening', 'Other', 'Office Appliances', 'Tourism', 'Medicine', 'Direct Sales', 'Fitness',
+         'Additional Service', 'Education', 'Weapon', 'Insurance', 'House Construction', 'Animals']
+    df_prev["NAME_GOODS_CATEGORY"] = df_prev["NAME_GOODS_CATEGORY"].replace(b, 'others')
+
+    c = ['AP+ (Cash loan)', 'Channel of corporate sales', 'Car dealer']
+    df_prev["CHANNEL_TYPE"] = df_prev["CHANNEL_TYPE"].replace(c, 'Other_Channel')
+
+    d = ['Auto technology', 'Jewelry', 'MLM partners', 'Tourism']
+    df_prev["NAME_SELLER_INDUSTRY"] = df_prev["NAME_SELLER_INDUSTRY"].replace(d, 'Others')
+
+    e = ['Refusal to name the goal', 'Money for a third person', 'Buying a garage', 'Gasification / water supply',
+         'Hobby', 'Business development', 'Buying a holiday home / land', 'Furniture', 'Car repairs',
+         'Buying a home', 'Wedding / gift / holiday']
+    df_prev["NAME_CASH_LOAN_PURPOSE"] = df_prev["NAME_CASH_LOAN_PURPOSE"].replace(e, 'Other_Loan')
+
+    df_prev['DAYS_FIRST_DRAWING'].replace(365243, np.nan, inplace=True)
+    df_prev['DAYS_FIRST_DUE'].replace(365243, np.nan, inplace=True)
+    df_prev['DAYS_LAST_DUE_1ST_VERSION'].replace(365243, np.nan, inplace=True)
+    df_prev['DAYS_LAST_DUE'].replace(365243, np.nan, inplace=True)
+    df_prev['DAYS_TERMINATION'].replace(365243, np.nan, inplace=True)
+
+    df_prev['NEW_APP_CREDIT_RATE'] = df_prev['AMT_APPLICATION'] / df_prev['AMT_CREDIT']
+
+    df_prev["NEW_APP_CREDIT_RATE_RATIO"] = df_prev["NEW_APP_CREDIT_RATE"].apply(lambda x: 1 if (x <= 1) else 0)
+    df_prev['NEW_AMT_PAYMENT_RATE'] = df_prev['AMT_CREDIT'] / df_prev['AMT_ANNUITY']
+
+    df_prev['NEW_APP_GOODS_RATE'] = df_prev['AMT_APPLICATION'] / df_prev['AMT_GOODS_PRICE']
+
+    df_prev['NEW_CREDIT_GOODS_RATE'] = df_prev['AMT_CREDIT'] / df_prev['AMT_GOODS_PRICE']
+
+    df_prev['NEW_RETURN_DAY'] = df_prev['DAYS_DECISION'] + df_prev['CNT_PAYMENT'] * 30
+
+    df_prev['NEW_DAYS_TERMINATION_DIFF'] = df_prev['DAYS_TERMINATION'] - df_prev['NEW_RETURN_DAY']
+
+    df_prev['NEW_DAYS_DUE_DIFF'] = df_prev['DAYS_LAST_DUE_1ST_VERSION'] - df_prev['DAYS_FIRST_DUE']
+
+    df_prev["NEW_CNT_PAYMENT"] = pd.cut(x=df_prev['CNT_PAYMENT'], bins=[0, 12, 60, 120],
+                                        labels=["Kısa", "Orta", "Uzun"])
+
+    df_prev["NEW_END_DIFF"] = df_prev["DAYS_TERMINATION"] - df_prev["DAYS_LAST_DUE"]
+
+    weekend = ["SATURDAY", "SUNDAY"]
+    df_prev["WEEKDAY_APPR_PROCESS_START"] = df_prev["WEEKDAY_APPR_PROCESS_START"].apply(
+        lambda x: "WEEKEND" if (x in weekend) else "WEEKDAY")
+
+    df_prev['NFLAG_LAST_APPL_IN_DAY'] = df_prev['NFLAG_LAST_APPL_IN_DAY'].astype("O")
+    df_prev['FLAG_LAST_APPL_PER_CONTRACT'] = df_prev['FLAG_LAST_APPL_PER_CONTRACT'].astype("O")
+    df_prev["NEW_CNT_PAYMENT"] = df_prev['NEW_CNT_PAYMENT'].astype("O")
+    df_prev['NEW_APP_CREDIT_RATE_RATIO'] = df_prev['NEW_APP_CREDIT_RATE_RATIO'].astype('O')
+    newCoding = {"0": "Yes", "1": "No"}
+    df_prev['NEW_APP_CREDIT_RATE_RATIO'] = df_prev['NEW_APP_CREDIT_RATE_RATIO'].replace(newCoding)
+
+    df_prev, cat_cols = one_hot_encoder(df_prev, nan_as_category=True)
+
+    # Aggregation for numeric features
     num_aggregations = {
-        'AMT_ANNUITY': ['min', 'max', 'mean'],
-        'AMT_APPLICATION': ['min', 'max', 'mean'],
-        'AMT_CREDIT': ['min', 'max', 'mean'],
-        'APP_CREDIT_PERC': ['min', 'max', 'mean', 'var'],
-        'AMT_DOWN_PAYMENT': ['min', 'max', 'mean'],
-        'AMT_GOODS_PRICE': ['min', 'max', 'mean'],
+        'SK_ID_PREV': 'count',
+        'AMT_ANNUITY': ['min', 'max', 'median', 'mean'],
+        'AMT_APPLICATION': ['min', 'max', 'mean', 'median'],
+        'AMT_CREDIT': ['min', 'max', 'mean', 'median'],
+        'AMT_DOWN_PAYMENT': ['min', 'max', 'mean', 'median'],
+        'AMT_GOODS_PRICE': ['min', 'max', 'mean', 'median'],
         'HOUR_APPR_PROCESS_START': ['min', 'max', 'mean'],
-        'RATE_DOWN_PAYMENT': ['min', 'max', 'mean'],
-        'DAYS_DECISION': ['min', 'max', 'mean'],
-        'CNT_PAYMENT': ['mean', 'sum'],
+        'RATE_DOWN_PAYMENT': ['min', 'max', 'mean', 'median'],
+        'DAYS_DECISION': ['min', 'max', 'mean', 'median'],
+        'NEW_APP_CREDIT_RATE': ['min', 'max', 'mean', 'var'],
+        'NEW_AMT_PAYMENT_RATE': ['min', 'max', 'mean'],
+        'NEW_APP_GOODS_RATE': ['min', 'max', 'mean'],
+        'NEW_CREDIT_GOODS_RATE': ['min', 'max', 'mean'],
+        'NEW_RETURN_DAY': ['min', 'max', 'mean', 'var'],
+        'NEW_DAYS_TERMINATION_DIFF': ['min', 'max', 'mean'],
+        'NEW_END_DIFF': ['min', 'max', 'mean'],
+        'NEW_APP_CREDIT_RATE_RATIO': ['min', 'max', 'mean'],
+        'NEW_DAYS_DUE_DIFF': ['min', 'max', 'mean']
     }
-    # Previous applications categorical features
+
+    # Aggregation for categorical features
     cat_aggregations = {}
     for cat in cat_cols:
         cat_aggregations[cat] = ['mean']
 
-    prev_agg = prev.groupby('SK_ID_CURR').agg({**num_aggregations, **cat_aggregations})
+    prev_agg = df_prev.groupby('SK_ID_CURR').agg({**num_aggregations, **cat_aggregations})
     prev_agg.columns = pd.Index(['PREV_' + e[0] + "_" + e[1].upper() for e in prev_agg.columns.tolist()])
-    # Previous Applications: Approved Applications - only numerical features
-    approved = prev[prev['NAME_CONTRACT_STATUS_Approved'] == 1]
+
+    # Approved Applications - Aggregation for numeric features
+    approved = df_prev[df_prev['NAME_CONTRACT_STATUS_Approved'] == 1]
     approved_agg = approved.groupby('SK_ID_CURR').agg(num_aggregations)
     approved_agg.columns = pd.Index(['APPROVED_' + e[0] + "_" + e[1].upper() for e in approved_agg.columns.tolist()])
     prev_agg = prev_agg.join(approved_agg, how='left', on='SK_ID_CURR')
-    # Previous Applications: Refused Applications - only numerical features
-    refused = prev[prev['NAME_CONTRACT_STATUS_Refused'] == 1]
+
+    # Refused Applications - Aggregation for numeric features
+    refused = df_prev[df_prev['NAME_CONTRACT_STATUS_Refused'] == 1]
     refused_agg = refused.groupby('SK_ID_CURR').agg(num_aggregations)
     refused_agg.columns = pd.Index(['REFUSED_' + e[0] + "_" + e[1].upper() for e in refused_agg.columns.tolist()])
     prev_agg = prev_agg.join(refused_agg, how='left', on='SK_ID_CURR')
-    del refused, refused_agg, approved, approved_agg, prev
+
+    del refused, refused_agg, approved, approved_agg, df_prev
     gc.collect()
     return prev_agg
 
@@ -391,7 +530,7 @@ def display_importances(feature_importance_df_):
     plt.savefig('lgbm_importances01.png')
 
 
-def main(debug=True):
+def main(debug=False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
