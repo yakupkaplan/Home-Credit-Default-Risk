@@ -1,7 +1,7 @@
 # HOME CREDIT DEFAULT RISK PREDICTION
 
 """
-This script is copied from https://www.kaggle.com/jsaguiar/lightgbm-with-simple-features and tehen updated, improved.
+This script is copied from https://www.kaggle.com/jsaguiar/lightgbm-with-simple-features and then updated, improved.
 Most features are created by applying min, max, mean, sum and var functions to grouped tables.
 Little feature selection is done and overfitting might be a problem since many features are related.
 The following key ideas were used:
@@ -22,7 +22,7 @@ import gc
 import time
 from contextlib import contextmanager
 from lightgbm import LGBMClassifier
-from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import KFold, StratifiedKFold
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -41,6 +41,19 @@ def timer(title):
 
 # One-hot encoding for categorical columns with get_dummies
 def one_hot_encoder(df, nan_as_category=True):
+    """
+    One-hot encoding for categorical columns with get_dummies
+    Returns dataframe with one-hot encoded columns and list for new created columns
+
+    :param df: dataframe
+        dataframe whose categorical columns will be one hot encoded
+
+    :param nan_as_category: bool
+        boolean indicating if the missing values will be shown separately or not.
+
+    :return: dataframe, list for new_columns
+
+    """
     original_columns = list(df.columns)
     categorical_columns = [col for col in df.columns if df[col].dtype == 'object']
     df = pd.get_dummies(df, columns=categorical_columns, dummy_na=nan_as_category)
@@ -52,6 +65,19 @@ def one_hot_encoder(df, nan_as_category=True):
 
 # Rare encoding function for rare labels
 def rare_encoder(dataframe, rare_perc):
+    """
+    Rare encoding function for rare labels
+    Returns dataframe with 'Rare' encoded labels
+
+    :param dataframe: dataframe
+        dataframe to be rare encoded
+
+    :param rare_perc: float
+        percentage for lables to be accepted as 'Rare'
+
+    :return: dataframe
+
+    """
     temp_df = dataframe.copy()
     rare_columns = [col for col in temp_df.columns if temp_df[col].dtypes == 'O'
                     and (temp_df[col].value_counts() / len(temp_df) < rare_perc).any(axis=None)]
@@ -64,6 +90,16 @@ def rare_encoder(dataframe, rare_perc):
 
 # Feature Engineering steps for application_train and application_test.
 def feature_eng_application_train(df):
+    """
+    Feature Engineering steps for application_train and application_test.
+    Returns dataframe with FE steps implemented.
+
+    :param df: dataframe
+        dataframe(application_train) for FE-steps
+
+    :return: dataframe
+
+    """
     # Optional: Remove 4 applications with XNA CODE_GENDER (train set) and Remove 2 applications with Unknown NAME_FAMILY_STATUS (train set)
     df = df[df['CODE_GENDER'] != 'XNA']
     df = df[df['NAME_FAMILY_STATUS'] != 'Unknown']
@@ -131,6 +167,19 @@ def feature_eng_application_train(df):
 
 # Preprocess application_train.csv and application_test.csv
 def application_train_test(num_rows=None, nan_as_category=False):
+    """
+    Loads, merges datasets. Afterwards, feature_eng_application_train and one_hot_encoder functions are called.
+    Returns dataframe with one-hot encoded and feature engineering implemented columns.
+
+    :param num_rows: int
+        int that shows number of rows to be loaded for the dataset
+
+    :param nan_as_category: bool
+        boolean that shows, if nan values will be created as separate columns or not.
+
+    :return: dataframe
+
+    """
     # Read data and merge
     df = pd.read_csv('datasets/application_train.csv', nrows=num_rows)
     test_df = pd.read_csv('datasets/application_test.csv', nrows=num_rows)
@@ -152,6 +201,16 @@ def application_train_test(num_rows=None, nan_as_category=False):
 
 # Feature Engineering steps for bureau_and_balance
 def feature_eng_bureau_and_balance(df):
+    """
+    Feature Engineering steps for bureau_and_balance.
+    Returns dataframe with FE steps implemented.
+
+    :param df: dataframe
+        dataframe(bureau_and_balance) for FE-steps
+
+    :return:dataframe
+
+    """
     df.fillna(0, inplace=True)
 
     grp = df[['SK_ID_CURR', 'DAYS_CREDIT']].groupby(by=['SK_ID_CURR'])['DAYS_CREDIT'].count().reset_index().rename(
@@ -194,6 +253,26 @@ def feature_eng_bureau_and_balance(df):
 
 # Aggregation operations for bureau_and_balance
 def aggregations_bureau_and_balance(bureau, bb, bureau_cat, bb_cat):
+    """
+    Aggregation operations for bureau_and_balance
+    Returns dataframe after completing specific aggregations for numerical and categorical variables for bureau
+    and bureau_balance tables and finally joins these two tables.
+
+    :param bureau: dataframe
+        dataframe(bureau) for applying aggregations
+
+    :param bb: dataframe
+        dataframe(bureau_balance) for applying aggregations
+
+    :param bureau_cat: list
+        list that holds categorical variables for bureau table
+
+    :param bb_cat: list
+        list that holds categorical variables for bureau_balance table
+
+    :return: dataframe
+
+    """
     # Bureau balance: Perform aggregations and merge with bureau.csv
     bb_aggregations = {'MONTHS_BALANCE': ['min', 'max', 'size']}
     for col in bb_cat:
@@ -257,6 +336,20 @@ def aggregations_bureau_and_balance(bureau, bb, bureau_cat, bb_cat):
 
 # Preprocess bureau.csv and bureau_balance.csv
 def bureau_and_balance(num_rows=None, nan_as_category=True):
+    """
+    Loads, merges datasets. Afterwards, feature_eng_application_train, rare_encoding, one_hot_encoder and aggregations
+    functions are called.
+    Returns dataframe with one-hot encoded, rare-encoded, feature engineering and aggregations implemented columns.
+
+    :param num_rows: int
+        int that shows number of rows to be loaded for the dataset
+
+    :param nan_as_category: bool
+        boolean that shows, if nan values will be created as separate columns or not.
+
+    :return: dataframe
+
+    """
     # Load the datasets
     bureau = pd.read_csv('datasets/bureau.csv', nrows=num_rows)
     bb = pd.read_csv('datasets/bureau_balance.csv', nrows=num_rows)
@@ -275,6 +368,16 @@ def bureau_and_balance(num_rows=None, nan_as_category=True):
 
 # Feature Engineering steps for previous_applications.
 def feature_eng_previous_applications(df):
+    """
+    Feature Engineering steps for previous_applications.
+    Returns dataframe with FE steps implemented.
+
+    :param df: dataframe
+        dataframe(previous_applications) for FE-steps
+
+    :return:dataframe
+
+    """
     accompanied = ['Family', 'Spouse, partner', 'Children', 'Other_B', 'Other_A', 'Group of people']
     df["NAME_TYPE_SUITE"] = df["NAME_TYPE_SUITE"].replace(accompanied, 'Accompanied')
 
@@ -320,14 +423,27 @@ def feature_eng_previous_applications(df):
     df['FLAG_LAST_APPL_PER_CONTRACT'] = df['FLAG_LAST_APPL_PER_CONTRACT'].astype("O")
     df["NEW_CNT_PAYMENT"] = df['NEW_CNT_PAYMENT'].astype("O")
     df['NEW_APP_CREDIT_RATE_RATIO'] = df['NEW_APP_CREDIT_RATE_RATIO'].astype('O')
-    newCoding = {"0": "Yes", "1": "No"}
-    df['NEW_APP_CREDIT_RATE_RATIO'] = df['NEW_APP_CREDIT_RATE_RATIO'].replace(newCoding)
+    new_coding = {"0": "Yes", "1": "No"}
+    df['NEW_APP_CREDIT_RATE_RATIO'] = df['NEW_APP_CREDIT_RATE_RATIO'].replace(new_coding)
 
     return df
 
 
 # Aggregation operations for previous_applications
 def aggregations_previous_applications(df, cat_cols):
+    """
+    Aggregation operations for previous_applications
+    Returns dataframe after completing specific aggregations for numerical and categorical variables for previous_applications.
+
+    :param df: dataframe
+        dataframe(bureau) for applying aggregations
+
+    :param cat_cols: list
+        list that holds categorical variables for bureau table
+
+    :return: dataframe
+
+    """
     # Aggregation for numeric features
     num_aggregations = {
         'SK_ID_PREV': 'count',
@@ -378,6 +494,20 @@ def aggregations_previous_applications(df, cat_cols):
 
 # Preprocess previous_applications.csv
 def previous_applications(num_rows=None, nan_as_category=True):
+    """
+    Loads previous_applications dataset. Afterwards, feature_eng_application_train, one_hot_encoder and aggregations
+    functions are called.
+    Returns dataframe with one-hot encoded, feature engineering and aggregations implemented columns.
+
+    :param num_rows: int
+        int that shows number of rows to be loaded for the dataset
+
+    :param nan_as_category: bool
+        boolean that shows, if nan values will be created as separate columns or not.
+
+    :return: dataframe
+
+    """
     df_prev = pd.read_csv('datasets/previous_application.csv', nrows=num_rows)
     # Implement feature engineering operations for df_prev
     df_prev = feature_eng_previous_applications(df_prev)
@@ -391,8 +521,21 @@ def previous_applications(num_rows=None, nan_as_category=True):
 
 # Preprocess POS_CASH_balance.csv
 def pos_cash(num_rows=None, nan_as_category=True):
+    """
+    Loads pos_cash dataset. Afterwards, one_hot_encoder and aggregations steps are implemented.
+    Returns dataframe with one-hot encoded and aggregations implemented columns.
+
+    :param num_rows: int
+        int that shows number of rows to be loaded for the dataset
+
+    :param nan_as_category: bool
+        boolean that shows, if nan values will be created as separate columns or not.
+
+    :return: dataframe
+
+    """
     pos = pd.read_csv('datasets/POS_CASH_balance.csv', nrows=num_rows)
-    pos, cat_cols = one_hot_encoder(pos, nan_as_category=True)
+    pos, cat_cols = one_hot_encoder(pos, nan_as_category=nan_as_category)
     # Features
     aggregations = {
         'MONTHS_BALANCE': ['max', 'mean', 'size'],
@@ -413,8 +556,20 @@ def pos_cash(num_rows=None, nan_as_category=True):
 
 # Preprocess installments_payments.csv
 def installments_payments(num_rows=None, nan_as_category=True):
+    """
+    Loads installments_payments dataset. Afterwards, one_hot_encoder, feature engineering and aggregations steps are implemented.
+    Returns dataframe with one-hot encoded, feature engineering and aggregations implemented columns.
+
+    :param num_rows: int
+        int that shows number of rows to be loaded for the dataset
+
+    :param nan_as_category: bool
+        boolean that shows, if nan values will be created as separate columns or not.
+
+    :return: dataframe
+    """
     ins = pd.read_csv('datasets/installments_payments.csv', nrows=num_rows)
-    ins, cat_cols = one_hot_encoder(ins, nan_as_category=True)
+    ins, cat_cols = one_hot_encoder(ins, nan_as_category=nan_as_category)
     # Percentage and difference paid in each installment (amount paid and installment value)
     ins['PAYMENT_PERC'] = ins['AMT_PAYMENT'] / ins['AMT_INSTALMENT']
     ins['PAYMENT_DIFF'] = ins['AMT_INSTALMENT'] - ins['AMT_PAYMENT']
@@ -447,8 +602,20 @@ def installments_payments(num_rows=None, nan_as_category=True):
 
 # Preprocess credit_card_balance.csv
 def credit_card_balance(num_rows=None, nan_as_category=True):
+    """
+    Loads credit_card_balance dataset. Afterwards, one_hot_encoder, feature engineering and aggregations steps are implemented.
+    Returns dataframe with one-hot encoded, feature engineering and aggregations implemented columns.
+
+    :param num_rows: int
+        int that shows number of rows to be loaded for the dataset
+
+    :param nan_as_category: bool
+        boolean that shows, if nan values will be created as separate columns or not.
+
+    :return: dataframe
+    """
     cc = pd.read_csv('datasets/credit_card_balance.csv', nrows=num_rows)
-    cc, cat_cols = one_hot_encoder(cc, nan_as_category=True)
+    cc, cat_cols = one_hot_encoder(cc, nan_as_category=nan_as_category)
     # General aggregations
     cc.drop(['SK_ID_PREV'], axis=1, inplace=True)
     cc_agg = cc.groupby('SK_ID_CURR').agg(['min', 'max', 'mean', 'sum', 'var'])
@@ -457,23 +624,49 @@ def credit_card_balance(num_rows=None, nan_as_category=True):
     cc_agg['CC_COUNT'] = cc.groupby('SK_ID_CURR').size()
     del cc
     gc.collect()
+
     return cc_agg
 
 
 # LightGBM GBDT with KFold or Stratified KFold
 # Parameters from Tilii kernel: https://www.kaggle.com/tilii7/olivier-lightgbm-parameters-by-bayesian-opt/code
 def kfold_lightgbm(df, num_folds, stratified=False, debug=False):
+    """
+    LightGBM GBDT with KFold or Stratified KFold.
+    Parameters from Tilii kernel: https://www.kaggle.com/tilii7/olivier-lightgbm-parameters-by-bayesian-opt/code
+    Separates train and test sets. Trains the model with tuned hyperparameters(found by Bayesian optimization) and
+    creates feature importance dataframe.
+
+    Returns a dataframe that shows hightest 40 feature importances.
+
+    :param df: dataframe
+        dataframe to be trained
+
+    :param num_folds: int
+        int that shows the number of splits for cross validation.
+
+    :param stratified: bool
+        boolean that indicates, if cross validation will be applied stratified or not.
+
+    :param debug: bool
+        boolean that indicates, if the model will be run debug mode or not.
+
+    :return: dataframe
+
+    """
     # Divide in training/validation and test data
     train_df = df[df['TARGET'].notnull()]
     test_df = df[df['TARGET'].isnull()]
     print("Starting LightGBM. Train shape: {}, test shape: {}".format(train_df.shape, test_df.shape))
     del df
     gc.collect()
+
     # Cross validation model
     if stratified:
         folds = StratifiedKFold(n_splits=num_folds, shuffle=True, random_state=1001)
     else:
         folds = KFold(n_splits=num_folds, shuffle=True, random_state=1001)
+
     # Create arrays and dataframes to store results
     oof_preds = np.zeros(train_df.shape[0])
     sub_preds = np.zeros(test_df.shape[0])
@@ -526,9 +719,14 @@ def kfold_lightgbm(df, num_folds, stratified=False, debug=False):
 
 # Display/plot feature importance
 def display_importances(feature_importance_df_):
-    cols = feature_importance_df_[["feature", "importance"]].groupby("feature").mean().sort_values(by="importance",
-                                                                                                   ascending=False)[
-           :40].index
+    """
+    Displays/plots and saves feature importances.
+
+    :param feature_importance_df_: dataframe
+        dataframe for feature importances to be plotted and saved.
+
+    """
+    cols = feature_importance_df_[["feature", "importance"]].groupby("feature").mean().sort_values(by="importance",ascending=False)[:40].index
     best_features = feature_importance_df_.loc[feature_importance_df_.feature.isin(cols)]
     plt.figure(figsize=(8, 10))
     sns.barplot(x="importance", y="feature", data=best_features.sort_values(by="importance", ascending=False))
@@ -538,6 +736,13 @@ def display_importances(feature_importance_df_):
 
 
 def main(debug=True):
+    """
+    Main function for Home Credit Default Risk Prediction.
+
+    :param debug: bool
+        boolean that indicates, if the model will be run debug mode or not.
+
+    """
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
