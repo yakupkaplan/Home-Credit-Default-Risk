@@ -1,6 +1,5 @@
-data/
 .idea/
 *.csv
-*.xlsx
+*.pkl
 
 
