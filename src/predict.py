@@ -1,4 +1,6 @@
-# PREDICTION SCRIPT FOR HOME CREDIT DEFAULT PREDICTION
+"""
+PREDICTION SCRIPT FOR HOME CREDIT DEFAULT PREDICTION
+"""
 
 import os
 import pickle
@@ -6,14 +8,16 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 import argparse
 
+from src.config import FINAL_TRAIN_DF, FINAL_TEST_DF
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--train', dest='prediction_type', action='store_true')
 parser.add_argument('--test', dest='prediction_type', action='store_false')
 parser.set_defaults(prediction_type=True)
 args = parser.parse_args()
 
-final_train = pd.read_pickle("data/final_train_df.pkl")
-final_test = pd.read_pickle("data/final_test_df.pkl")
+final_train = pd.read_pickle(FINAL_TRAIN_DF)
+final_test = pd.read_pickle(FINAL_TEST_DF)
 
 feats = [f for f in final_test.columns if f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index',
                                                     "APP_index", "BURO_index", "PREV_index", "INSTAL_index",

@@ -1,14 +1,17 @@
-# HOME CREDIT DEFAULT RISK RUNNER FUNCTION
+"""
+HOME CREDIT DEFAULT RISK RUNNER FUNCTION
+"""
 
 import gc
 import time
 from contextlib import contextmanager
 import warnings
 
-from scripts.helper_functions import get_namespace
-from scripts.preprocessing import application_train_test, bureau_and_balance, previous_applications, pos_cash, \
+from src.helper_functions import get_namespace
+from src.preprocessing import application_train_test, bureau_and_balance, previous_applications, pos_cash, \
     installments_payments, credit_card_balance
-from scripts.train import kfold_lightgbm
+from src.train import kfold_lightgbm
+from src.config import FINAL_TRAIN_DF, FINAL_TEST_DF
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -56,9 +59,10 @@ def main(debug=False):
         # saving final dataframes
         train_df = df[df['TARGET'].notnull()]
         test_df = df[df['TARGET'].isnull()]
-        train_df.to_pickle("data/final_train_df.pkl")
-        test_df.to_pickle("data/final_test_df.pkl")
+        train_df.to_pickle(FINAL_TRAIN_DF)
+        test_df.to_pickle(FINAL_TEST_DF)
         del train_df, test_df
+
         gc.collect()
 
     with timer("Run LightGBM"):
