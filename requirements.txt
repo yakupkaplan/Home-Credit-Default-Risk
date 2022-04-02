@@ -1,7 +1,6 @@
 catboost==0.24.3
 certifi==2020.12.5
 cycler==0.10.0
-fastparquet @ file:///C:/ci/fastparquet_1598020649135/work
 graphviz==0.15
 joblib==0.17.0
 kiwisolver==1.3.1
@@ -11,9 +10,7 @@ llvmlite==0.35.0
 matplotlib==3.3.3
 missingno==0.4.2
 mkl-fft==1.2.0
-mkl-random==1.1.1
 mkl-service==2.3.0
-numba==0.52.0
 numpy==1.19.4
 packaging @ file:///tmp/build/80754af9/packaging_1606930849755/work
 pandas==1.1.4
@@ -22,12 +19,10 @@ plotly==4.13.0
 PyMySQL==0.10.1
 pyparsing==2.4.7
 python-dateutil==2.8.1
-pytz @ file:///tmp/build/80754af9/pytz_1606604771399/work
 retrying==1.3.3
 scikit-learn==0.23.2
 scipy==1.5.4
 seaborn==0.11.0
-six @ file:///C:/ci/six_1605187374963/work
 sklearn==0.0
 threadpoolctl==2.1.0
 thrift==0.13.0
